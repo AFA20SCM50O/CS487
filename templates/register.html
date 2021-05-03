@@ -1,0 +1,22 @@
+{% extends "header.html" %}
+{% block body %}
+    Please input your information to register (*required)<br>
+	<form method="POST" >
+        Type in all fields below<br>
+        <br>
+        <b>Basic Information</b><br>
+        Enter first name*: <input type="text" placeholder="First name" name = "customer_first_name" required><br>
+        Enter last name*: <input type="text" placeholder="Last name" name = "customer_last_name" required><br>
+        Enter username*: <input type="text" placeholder="UserName" name="username" required><br>
+        Enter password*: <input type="text" placeholder="Password" name="password" required><br>
+        <br>
+        <b>Address</b><br>
+        Enter street number*: <input type="number" name="street_number" required><br>
+        Enter street name*: <input type="text" name="street_name" required><br>
+        Enter city*: <input type="text" name="city" required><br>
+        Enter state*: <input type="text" placeholder="two-digit abbr." name="state" required><br>
+        Enter zip code*: <input type="number" name="zip" required><br>
+		
+		<input type="submit" value="Submit">
+    </form>
+{% endblock %}

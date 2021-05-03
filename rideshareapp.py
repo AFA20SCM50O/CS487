@@ -6,65 +6,75 @@ from table_defs import *
 app = Flask(__name__)
 import sqlite3, hashlib, os
 from werkzeug.utils import secure_filename
+app.config['SECRET_KEY'] = 'secret'
+
+
 app = Flask(__name__)
 
 # conn and cur as global variables
-conn = psycopg2.connect(host="localhost",
-                            database=
-                            user=
-                            password="
-                            )
+db_settings = {
+    "host": "localhost",
+    "database": "RideShareApp",
+    "user": "postgres",
+    "password": "Alfred45"}
+conn = psycopg2.connect(**db_settings)
 cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
-@app.route('/')
-def index():
-    return 'render_template('index.html', **locals())>'
 
-
-######################################LOGIN PAGE########################################################
-#TODO: #Create Login Page with login verification & if not logged in redirect to account creation
-        #verify login through DB
-        #
+################################Login Page##########################
 def getLogindetails():
     if 'username' not in session:
             loggedIn = False
-            customer_first_name = ""
-            customer_id = " "
+            rider_first_name = ""
+            rider_id = " "
     else:
         try:
             username = session['username']
             print("username is: ", username)
-            sql = "SELECT * FROM customer WHERE username=%s" #DB not yet set up will need to redo query
+            sql = "SELECT * FROM rider WHERE rider_username=%s"
             cur.execute(sql, (username, ))
             print("trying to fetchone on p")
             p = cur.fetchone()
             print("p is: ", p)
-            customer_first_name = p[1]
-            customer_id = p[0]
-            print("customer_id from inside getLoginDetails: ", customer_id)
+            rider_first_name = p[1]
+            rider_id = p[0]
+            print("rider_id from inside getLoginDetails: ", rider_id)
             loggedIn = True
         except Exception as e:
             print(e)
             print("Unexpected error:", sys.exc_info()[0])
             loggedIn = False
-            customer_first_name = ""
+            rider_first_name = ""
             session.pop('username')
-    return (loggedIn, customer_first_name, customer_id)
+    return (loggedIn, rider_first_name, rider_id)
 
 def valid(username,password):
     print("made it to valid function")
-    cur.execute("select username, password from customer where username='"+username+"'")
+    print("username:", username, " type")
+    print("password:", password)
+    sql = "select rider_username, rider_password from rider where rider_username=%s"
+    cur.execute(sql, (username,))
     print("excecuted valid query")
     user = cur.fetchall()
+    print("user{}".format(user))
     try:
         for i in user:
+            print("i:", i)
             if username == i[0] and password == i[1]:
+                print("username:", username)
+                print("password:", password)
                 return True
     except Exception as e:
         print(e)
         print("Unexpected error:", sys.exc_info()[0])
         return False
-    return True
+# not sure if we need this either could use as example to check login in other routes
+# @app.route("/")
+# def root():
+#     loggedIn, first_name = getLogindetails()
+#     cur.execute('SELECT * FROM categories')            
+#     categoryData = cur.fetchall()              
+#     return render_template('index.html', loggedIn = loggedIn, first_name = first_name, categoryData=categoryData)
 
 @app.route('/index')
 def loginform():
@@ -83,14 +93,14 @@ def loginform():
             return redirect(url_for('product_search')) #different redirect
         else:
             flash("Invalid credentials")
-            return render_template('login.html' )
+            return render_template('index.html' )
     else:
-        return render_template('login.html')
+        return render_template('index.html')
 
 @app.route('/logout')
 def logout():
     session.pop('username', None)
-    session.pop('staff_name', None)
+    session.pop('driver_name', None)
     return redirect(url_for('index')) 
 
 
@@ -99,8 +109,8 @@ def registration():
     print("I am in registration")
     if request.method == "POST":
         print("I am in the if... POST")
-        customer_first_name = request.form.get ('customer_first_name')
-        customer_last_name = request.form.get('customer_last_name')
+        rider_first_name = request.form.get ('rider_first_name')
+        rider_last_name = request.form.get('rider_last_name')
         dUN = request.form.get('username')
         dPW = request.form.get('password')
         #address fields
@@ -109,27 +119,25 @@ def registration():
         city = request.form.get ('city')
         state = request.form.get ('state')
         zip = request.form.get ('zip')
-        # balance (set to 0 for new customer)
-        balance = 0
+        
 
         #queries
-        #DB not yet set up query will need to reworked
-        addr_check_query = "SELECT address_id FROM address WHERE \
+        addr_check_query = "SELECT addresdriver_id FROM address WHERE \
                             street_number=%s AND street_name=%s AND city= %s AND state=%s AND zip=%s"
         addr_insert_query = "INSERT INTO address (street_number, street_name, city, state, zip)  \
                             VALUES  (%s, %s, %s, %s, %s)"
-        customer_check_query = "SELECT customer_id FROM customer WHERE username=%s"
-        customer_insert_query = "INSERT into customer (customer_first_name, customer_last_name, balance, address_id, username, password)  VALUES  (%s, %s, %s, %s, %s, %s)"
+        rider_check_query = "SELECT rider_id FROM rider WHERE rider_username=%s"
+        rider_insert_query = "INSERT into rider (rider_first_name, rider_last_name, addresdriver_id, rider_username, rider_password)  VALUES  (%s, %s, %s, %s, %s)"
         try:
             print("I am in the try block")
             #check for username exists
-            cur.execute(customer_check_query, (dUN,))
-            print("executed customer_check_query")
+            cur.execute(rider_check_query, (dUN,))
+            print("executed rider_check_query")
             res = cur.fetchone()
             print("results = ", res)
             if res is None:
                 print("res is None block")
-                # before inserting into customer insert into address if doesn't already exist:
+                # before inserting into rider insert into address if doesn't already exist:
                 cur.execute(addr_check_query, (street_number, street_name, city, state, zip))
                 print("executed addr_check_query")
                 res = cur.fetchone()
@@ -138,54 +146,54 @@ def registration():
                     conn.commit()
                     cur.execute(addr_check_query, (street_number, street_name, city, state, zip))
                     res = cur.fetchone()
-                    address_id = res[0]
+                    addresdriver_id = res[0]
                 else:
-                    address_id = res[0]
-                # now insert into customer using determined address_id:
-                cur.execute(customer_insert_query, (customer_first_name, customer_last_name, balance, address_id, dUN, dPW))
+                    addresdriver_id = res[0]
+                # now insert into rider using determined addresdriver_id:
+                cur.execute(rider_insert_query, (rider_first_name, rider_last_name, addresdriver_id, dUN, dPW))
                 conn.commit()
             else:
                 print("Username already taken, please try again")
 
-            return redirect (url_for('loginform'))
+            return redirect (url_for('index'))
         except Exception as f :
             print (f)
             print("In the exception block")
             conn.rollback()
     return render_template("register.html", **locals())
 
-def getLogindetails_staff():
-    if 'staff_name' not in session:
+def getLogindetails_driver():
+    if 'driver_username' not in session:
             loggedIn = False
-            staff_name = " "
-            staff_id = " "
+            driver_username = " "
+            driver_id = " "
     else:
         try:
-            staff_name = session['staff_name']
-            print("staff_name is: ", staff_name)
-            sql2 = "SELECT * FROM staff_member WHERE staff_name=%s"
-            cur.execute(sql2, (staff_name, ))
+            driver_name = session['driver_username']
+            print("driver_name is: ", driver_username)
+            sql2 = "SELECT * FROM driver WHERE driver_username=%s"
+            cur.execute(sql2, (driver_username, ))
             print("trying to fetchone on p")
             p = cur.fetchone()
             print("p is: ", p)
-            staff_name = p[2]
-            staff_id = p[0]
+            driver_name = p[2]
+            driver_id = p[0]
             loggedIn = True
         except Exception as e:
             print(e)
             print("Unexpected error:", sys.exc_info()[0])
             loggedIn = False
-            staff_name = " "
-            session.pop('staff_name')
-    return (loggedIn, staff_name, staff_id)
+            driver_username = " "
+            session.pop('driver_username')
+    return (loggedIn, driver_username, driver_id)
 
-def valid_staff(staff_name, staff_id):
-    sql = "select staff_name, staff_id from staff_member where staff_name=%s"
-    cur.execute(sql, (staff_name, ))
-    staff = cur.fetchall()
+def valid_driver(driver_username, driver_id):
+    sql = "select driver_username, driver_id from driver where driver_username=%s"
+    cur.execute(sql, (driver_username, ))
+    driver = cur.fetchall()
     try:
-        for i in staff:
-            if staff_name == i[0] and int(staff_id) == int(i[1]):
+        for i in driver:
+            if driver_username == i[0] and int(driver_id) == int(i[1]):
                 return True
     except:
         return False
@@ -197,27 +205,26 @@ def valid_staff(staff_name, staff_id):
 #     categoryData = cur.fetchall()
 #     return render_template('index.html', loggedIn = loggedIn, first_name = first_name, categoryData=categoryData)
 
-@app.route('/index')
-def staffloginform():
-    print("In staffloginform")
-    if request.args.get('staff_name'):
+@app.route('/driverlogin')
+def driverloginform():
+    print("In driverloginform")
+    if request.args.get('driver_username'):
         print("in outer if block")
-        s_name = request.args.get('staff_name')
-        s_id = request.args.get('staff_id')
-        print("s_name", s_name)
-        print("s_id", s_id)
-        if valid_staff(s_name, s_id):
+        driver_username = request.args.get('driver_username')
+        driver_id = request.args.get('driver_id')
+        print("driver_username", driver_username)
+        print("driver_id", driver_id)
+        if valid_driver(driver_username, driver_id):
             print("in inner if block")
-            session['staff_name'] = s_name
-            print(session['staff_name'])
-            print("loginform(): is staff_name in session?")
-            print('staff_name' in session)
+            session['driver_username'] = driver_username
+            print(session['driver_username'])
+            print("loginform(): is driver_username in session?")
+            print('driver_username' in session)
             return redirect(url_for('add_product'))
         else:
             flash("Invalid credentials")
-            return render_template('stafflogin.html' )
+            return render_template('driverlogin.html' )
     else:
-        return render_template('stafflogin.html')
-
+        return render_template('driverlogin.html')
 if __name__ == '__main__':
     app.run (debug=True)
