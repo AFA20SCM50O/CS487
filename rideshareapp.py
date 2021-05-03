@@ -2,7 +2,7 @@ import psycopg2, psycopg2.extras
 import sys
 import datetime
 from flask import Flask, flash, redirect, render_template, request, session, url_for
-from table_defs import *
+#from table_defs import *
 app = Flask(__name__)
 import sqlite3, hashlib, os
 from werkzeug.utils import secure_filename
